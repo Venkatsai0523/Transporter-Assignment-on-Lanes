@@ -1,0 +1,37 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: transporter
+      POSTGRES_USER: transporter
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-transporter}
+    ports:
+      - "5432:5432"
+    volumes:
+      - transporter_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U transporter -d transporter"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/transporter
+      DB_USERNAME: transporter
+      DB_PASSWORD: ${DB_PASSWORD:-transporter}
+      PORT: 8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  transporter_pgdata:
